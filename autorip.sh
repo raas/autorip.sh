@@ -14,7 +14,7 @@
 # - run with 'nice', preferably in 'screen' :)
 
 # packages needed:
-### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264
+### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd
 
 # poor man's error checking: see which command dies ;-)
 set -x 
