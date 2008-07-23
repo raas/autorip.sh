@@ -16,11 +16,17 @@
 # packages needed:
 ### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd
 
+if [ $# -ne 2 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+	echo "Usage: $0 dvd.iso outfile.mkv"
+	exit 1
+fi
+
 # poor man's error checking: see which command dies ;-)
 set -x 
 
 # parallel encoding of the video part (use as many as you have real CPU cores)
-THREADS=2
+#THREADS=2
+THREADS=auto
 
 # longest track -- this is probably what you want
 TRACK=$( lsdvd "$1" | sed -n 's/Longest track: //p' )
