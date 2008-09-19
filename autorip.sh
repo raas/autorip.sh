@@ -27,7 +27,7 @@ function usage() {
 }
 
 # poor man's error checking: see which command dies ;-)
-set -x 
+#set -x 
 
 AUDIOTRACKS=""
 SUBTITLES=""
@@ -68,7 +68,6 @@ if [ -z "$OUTMKV" ]; then
 	echo "Output file not specified, defaulting to $OUTMKV"
 fi
 
-exit
 # parallel encoding of the video part (use as many as you have real CPU cores)
 #THREADS=2
 THREADS=auto
