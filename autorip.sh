@@ -16,14 +16,59 @@
 # packages needed:
 ### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd
 
-if [ $# -ne 2 ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-	echo "Usage: $0 dvd.iso outfile.mkv"
+function usage() {
+	echo "Usage: $0 [options] -d dvd.iso"
+	echo "Options:"
+	echo "	-o outfile.mkv	-	place final results in that file (default: <dvdfilename>.mkv)"
+	echo "	-a id1,id2,id3	-	audio tracks to rip (default: rip the default track only), e.g. '0,128'"
+	echo "	-s lang1,lang2	-	subtitles to rip (default: no subtitles), e.g. 'hu,en' "
+	echo "Use 'mplayer -v' to determine audio track numbers etc."
 	exit 1
-fi
+}
 
 # poor man's error checking: see which command dies ;-)
 set -x 
 
+AUDIOTRACKS=""
+SUBTITLES=""
+DVDISO=""
+OUTMKV=""
+
+while getopts "hd:o:a:s:" OPTION; do
+	case $OPTION in
+		h)
+			usage
+			;;
+		d)
+			DVDISO=${OPTARG}
+			;;
+		o)
+			OUTMKV=${OPTARG}
+			;;
+		a)
+			AUDIOTRACKS="${OPTARG/,/ }"
+			;;
+		s)
+			SUBTITLES="${OPTARG/,/ }"
+			;;
+		*)
+			echo "Invalid argument $OPTION"
+			;;
+	esac
+done
+
+
+if ! [ -e "$DVDISO" ]; then
+	echo "DVD file not found: $DVDISO"
+	exit 1
+fi
+
+if [ -z "$OUTMKV" ]; then
+	OUTMKV=${DVDISO%.*}.mkv
+	echo "Output file not specified, defaulting to $OUTMKV"
+fi
+
+exit
 # parallel encoding of the video part (use as many as you have real CPU cores)
 #THREADS=2
 THREADS=auto
@@ -31,17 +76,22 @@ THREADS=auto
 # longest track -- this is probably what you want
 TRACK=$( lsdvd "$1" | sed -n 's/Longest track: //p' )
 
-# get subtitles
-for i in en hu; do
+# get subtitles, if any
+for i in $SUBTITLES; do
 	mencoder dvd://${TRACK} -dvd-device "$1" \
 		-nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i
 done
 
 # get audio tracks
-for i in 128; do
+for i in $AUDIOTRACKS; do
 	mplayer dvd://${TRACK} -dvd-device "$1" \
 		-aid $i -dumpaudio -dumpfile title.${i}.ac3
 done
+# get default if none was specified
+if [ -z "$AUDIOTRACKS" ]; then
+	mplayer dvd://${TRACK} -dvd-device "$1" \
+		-aid $i -dumpaudio -dumpfile title.ac3
+fi
 
 # options from mplayer encoding howto:
 #
