@@ -69,22 +69,22 @@ fi
 THREADS=auto
 
 # longest track -- this is probably what you want
-TRACK=$( lsdvd "$1" | sed -n 's/Longest track: //p' )
+TRACK=$( lsdvd "${DVDISO}" | sed -n 's/Longest track: //p' )
 
 # get subtitles, if any
 for i in $SUBTITLES; do
-	mencoder dvd://${TRACK} -dvd-device "$1" \
+	mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i
 done
 
 # get audio tracks
 for i in $AUDIOTRACKS; do
-	mplayer dvd://${TRACK} -dvd-device "$1" \
+	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-aid $i -dumpaudio -dumpfile title.${i}.ac3
 done
 # get default if none was specified
 if [ -z "$AUDIOTRACKS" ]; then
-	mplayer dvd://${TRACK} -dvd-device "$1" \
+	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-aid $i -dumpaudio -dumpfile title.ac3
 fi
 
@@ -98,7 +98,7 @@ fi
 
 # two-pass video encoding for quality (FIXME: do 3 passes make sense?)
 for i in 1 2; do
-	mencoder dvd://${TRACK} -dvd-device "$1" \
+	mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-ovc x264 \
 		-x264encopts subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
 		-oac copy \
@@ -112,7 +112,7 @@ MP4Box -add title.264 title.mp4 && rm -f title.264
 
 # pack everything into a Matroska container
 # Magic: let the command run even if there are no audio tracks and/or subtitles
-mkvmerge -v -o "$2" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) && \
+mkvmerge -v -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) && \
 	rm -f *.ac3 *.idx *.mp4
 
 # EOT
