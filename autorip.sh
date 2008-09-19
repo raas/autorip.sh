@@ -7,10 +7,6 @@
 #
 # Andras.Horvath nospam gmailcom 2008
 #
-# $1 - DVD ISO image name (blah.iso)
-# $2 - output name (blah.mkv)
-# - edit stuff to get all subtitles/audio tracks etc :)
-# - adjust number of threads to #CPUs..
 # - run with 'nice', preferably in 'screen' :)
 
 # packages needed:
