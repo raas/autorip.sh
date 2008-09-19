@@ -63,9 +63,11 @@ for i in 1 2; do
 done
 
 # pack video into MP4 container
-MP4Box -add title.264 title.mp4
+MP4Box -add title.264 title.mp4 && rm -f title.264
 
 # pack everything into a Matroska container
-mkvmerge -v -o "$2" title.mp4 *.ac3 *.idx
+# Magic: let the command run even if there are no audio tracks and/or subtitles
+mkvmerge -v -o "$2" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) && \
+	rm -f *.ac3 *.idx *.mp4
 
 # EOT
