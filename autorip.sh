@@ -85,7 +85,7 @@ done
 # get default if none was specified
 if [ -z "$AUDIOTRACKS" ]; then
 	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-aid $i -dumpaudio -dumpfile title.ac3
+		-dumpaudio -dumpfile title.ac3
 fi
 
 # options from mplayer encoding howto:
