@@ -23,6 +23,22 @@ function usage() {
 	exit 1
 }
 
+function check_for() {
+	BAD=0
+	for command in $*; do
+		echo -n "Checking for $command ... "
+		$command --help >/dev/null 2>&1
+		rval=$?
+		if [ $rval -eq 126 ] || [ $rval -eq 127 ]; then
+			echo "-> not found!"
+			BAD=1
+		else
+			echo "OK"
+		fi
+	done
+	return $BAD
+}
+
 # poor man's error checking: see which command dies ;-)
 #set -x 
 
@@ -68,6 +84,11 @@ if [ -z "$OUTMKV" ]; then
 	OUTMKV=${DVDISO%.*}.mkv
 	echo "Output file not specified, defaulting to $OUTMKV"
 fi
+
+# check dependencies
+check_for mplayer mencoder MP4Box mkvmerge || exit 1
+
+# -----------------------------------------------------------------------
 
 # parallel encoding of the video part (use as many as you have real CPU cores)
 #THREADS=2
