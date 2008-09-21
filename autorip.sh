@@ -15,9 +15,10 @@
 function usage() {
 	echo "Usage: $0 [options] -d dvd.iso"
 	echo "Options:"
-	echo "	-o outfile.mkv	-	place final results in that file (default: <dvdfilename>.mkv)"
-	echo "	-a id1,id2,id3	-	audio tracks to rip (default: rip the default track only), e.g. '0,128'"
-	echo "	-s lang1,lang2	-	subtitles to rip (default: no subtitles), e.g. 'hu,en' "
+    echo "  -t trackid      -   rip this chapter (default: rip longest)"
+    echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
+    echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip the default track only), e.g. '0,128'"
+    echo "  -s lang1,lang2  -   subtitles to rip (default: no subtitles), e.g. 'hu,en' "
 	echo "Use 'mplayer -v' to determine audio track numbers etc."
 	exit 1
 }
@@ -25,10 +26,11 @@ function usage() {
 # poor man's error checking: see which command dies ;-)
 #set -x 
 
+DVDISO=""
+TRACK=""
+OUTMKV=""
 AUDIOTRACKS=""
 SUBTITLES=""
-DVDISO=""
-OUTMKV=""
 
 while getopts "hd:o:a:s:" OPTION; do
 	case $OPTION in
@@ -37,6 +39,9 @@ while getopts "hd:o:a:s:" OPTION; do
 			;;
 		d)
 			DVDISO=${OPTARG}
+			;;
+		t)
+			TRACK=${OPTARG}
 			;;
 		o)
 			OUTMKV=${OPTARG}
@@ -68,8 +73,10 @@ fi
 #THREADS=2
 THREADS=auto
 
-# longest track -- this is probably what you want
-TRACK=$( lsdvd "${DVDISO}" | sed -n 's/Longest track: //p' )
+if [ -z "$TRACK" ]; then
+	# longest track -- this is probably what you want
+	TRACK=$( lsdvd "${DVDISO}" | sed -n 's/Longest track: //p' )
+fi
 
 # get subtitles, if any
 for i in $SUBTITLES; do
@@ -82,7 +89,7 @@ for i in $AUDIOTRACKS; do
 	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-aid $i -dumpaudio -dumpfile title.${i}.ac3
 done
-# get default if none was specified
+# or get default if none was specified
 if [ -z "$AUDIOTRACKS" ]; then
 	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-dumpaudio -dumpfile title.ac3
