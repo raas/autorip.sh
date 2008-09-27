@@ -13,7 +13,7 @@
 ### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd
 
 function usage() {
-	echo "Usage: $0 [options] -d dvd.iso"
+	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
 	echo "Options:"
     echo "  -t trackid      -   rip this chapter (default: rip longest)"
     echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
@@ -22,6 +22,11 @@ function usage() {
 	echo "Use 'mplayer -v' to determine audio track numbers etc."
 	exit 1
 }
+
+
+if [ $# -eq 0 ]; then
+	usage
+fi
 
 function check_for() {
 	BAD=0
@@ -74,9 +79,8 @@ while getopts "hd:o:a:s:" OPTION; do
 	esac
 done
 
-
 if ! [ -e "$DVDISO" ]; then
-	echo "DVD file not found: $DVDISO"
+	echo "DVD data not found at $DVDISO"
 	exit 1
 fi
 
