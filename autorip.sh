@@ -68,7 +68,7 @@ while getopts "hd:o:a:s:" OPTION; do
 			OUTMKV=${OPTARG}
 			;;
 		a)
-			AUDIOTRACKS="${OPTARG/,/ }"
+			AUDIOTRACKS="${OPTARG//,/ }"
 			;;
 		s)
 			SUBTITLES="${OPTARG/,/ }"
@@ -111,11 +111,13 @@ done
 
 # get audio tracks
 for i in $AUDIOTRACKS; do
+	echo "Getting audio track $i (of $AUDIOTRACKS)..."
 	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-aid $i -dumpaudio -dumpfile title.${i}.ac3
 done
 # or get default if none was specified
 if [ -z "$AUDIOTRACKS" ]; then
+	echo "Getting default audio track ..."
 	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
 		-dumpaudio -dumpfile title.ac3
 fi
