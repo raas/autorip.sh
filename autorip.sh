@@ -17,10 +17,11 @@ function usage() {
 	echo "Options:"
     echo "  -t trackid      -   rip this chapter (default: rip longest)"
     echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
-    echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip the default track only), e.g. '0,128'"
-    echo "  -s lang1,lang2  -   subtitles to rip (default: no subtitles), e.g. 'hu,en' "
+    echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip ALL audio tracks), e.g. '0,128,129'"
+    echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
+    echo "                      Specify \"none\" to include no subtitles at all."
     echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
-	echo "Use 'mplayer -v' to determine audio track numbers etc."
+	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers etc."
 	exit 1
 }
 
@@ -99,35 +100,76 @@ fi
 # check dependencies
 check_for mplayer mencoder MP4Box mkvmerge || exit 1
 
+echo "------------------------------------"
+
 # -----------------------------------------------------------------------
 
 if [ -z "$TRACK" ]; then
 	# longest track -- this is probably what you want
-	TRACK=$( lsdvd "${DVDISO}" | sed -n 's/Longest track: //p' )
-	echo "Targeting track $TRACK as longest track on the DVD.."
+	TRACK=$( lsdvd "${DVDISO}" 2>/dev/null | sed -n 's/Longest track: //p' )
+	if [ -z "$TRACK" ]; then
+		echo "Longest track not found and not specified -- check screen output.."
+		exit 1
+	else
+		echo "Targeting track $TRACK as longest track on the DVD.."
+	fi
 fi
 
+# autodetect audio tracks if none specified
+if [ -z "$AUDIOTRACKS" ]; then
+	echo "No audio streams specified, autodetecting."
+	lsdvd -q -a -t $TRACK ${DVDISO} 2>/dev/null | grep Audio:
+	AT_HEX=$( lsdvd -q -a -t $TRACK ${DVDISO} 2>/dev/null | sed -n 's/.*Stream id: //p' )
+	for a in $AT_HEX; do
+		AUDIOTRACKS=$( printf "%s %d" "$AUDIOTRACKS" $a )
+	done
+	if [ -z "$AUDIOTRACKS" ]; then
+		echo "*** WARNING WARNING WARNING: No audio tracks detected, is this normal? ***"
+	else
+		echo "Autodetected audio track IDs: $AUDIOTRACKS"
+	fi
+fi
+
+# autodetect subtitles if none specified (and "none" is not specified:)
+if [ -z "$SUBTITLES" ]; then
+#	lsdvd -q -s -t $TRACK ${DVDISO} 2>/dev/null | grep Subtitle:
+	SUBTITLES=$( lsdvd -q -s -t $TRACK ${DVDISO} 2>/dev/null | sed -n 's/.*Language: \([a-z]\+\).*/\1/p' | tr '\n' ' ')
+	echo "No subtitles specified, autodetected the following: ${SUBTITLES:-none}"
+fi
+
+echo "************************************************"
+echo "THE FOLLOWING TRACK WILL BE RIPPED:"
+echo "DVD: $DVDISO track $TRACK"
 # show what we're ripping
-lsdvd -t $TRACK ${DVDISO} 
+lsdvd -t $TRACK ${DVDISO} 2>/dev/null
 e=$?
 if [ $e -ne 0 ]; then
 	echo "*** Error accessing track $TRACK - check screen output (exit code $e)"
 	exit $e
 fi
+echo "Audio tracks: $AUDIOTRACKS"
+echo "Subtitles: $SUBTITLES"
+echo "************************************************"
+
+################################## getting down to actual ripping
 
 # get subtitles, if any
-for i in $SUBTITLES; do
-	date
-	echo "Getting subtitle: $i .."
-	mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-quiet -nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i \
-	> mplayer_sub_${i}.log 2>&1 
-	e=$?
-	if [ $e -ne 0 ]; then
-		echo "*** Error getting subtitle $i - check screen output (exit code $e)"
-		exit $e
-	fi
-done
+if [ "$SUBTITLES" != "none" ]; then
+	for i in $SUBTITLES; do
+		date
+		echo "Getting subtitle: $i .."
+		mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
+			-quiet -nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i \
+		> mplayer_sub_${i}.log 2>&1 
+		e=$?
+		if [ $e -ne 0 ]; then
+			echo "*** Error getting subtitle $i - check screen output (exit code $e)"
+			exit $e
+		fi
+	done
+else
+	echo "Skipping all subtitles as specified."
+fi
 
 # get audio tracks
 for i in $AUDIOTRACKS; do
@@ -235,4 +277,5 @@ rm -f *.ac3 *.idx *.mp4 x264_2pass.log
 date
 echo "Done."
 
+# vim: ai
 # EOT
