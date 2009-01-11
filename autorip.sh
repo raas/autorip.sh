@@ -19,6 +19,7 @@ function usage() {
     echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
     echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip the default track only), e.g. '0,128'"
     echo "  -s lang1,lang2  -   subtitles to rip (default: no subtitles), e.g. 'hu,en' "
+    echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
 	echo "Use 'mplayer -v' to determine audio track numbers etc."
 	exit 1
 }
@@ -53,7 +54,10 @@ OUTMKV=""
 AUDIOTRACKS=""
 SUBTITLES=""
 
-while getopts "hd:o:a:s:" OPTION; do
+# parallel encoding of the video part (use as many as you have real CPU cores)
+THREADS=auto
+
+while getopts "hd:o:a:s:c:" OPTION; do
 	case $OPTION in
 		h)
 			usage
@@ -72,6 +76,9 @@ while getopts "hd:o:a:s:" OPTION; do
 			;;
 		s)
 			SUBTITLES="${OPTARG/,/ }"
+			;;
+		c)
+			THREADS=${OPTARG}
 			;;
 		*)
 			echo "Invalid argument $OPTION"
@@ -93,10 +100,6 @@ fi
 check_for mplayer mencoder MP4Box mkvmerge || exit 1
 
 # -----------------------------------------------------------------------
-
-# parallel encoding of the video part (use as many as you have real CPU cores)
-#THREADS=2
-THREADS=auto
 
 if [ -z "$TRACK" ]; then
 	# longest track -- this is probably what you want
