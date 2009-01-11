@@ -30,19 +30,25 @@ if [ $# -eq 0 ]; then
 	usage
 fi
 
+# check for programs (must have --help option)
+# usage: check_for x y z
+# returns error if something does not work/exist/etc
+#
 function check_for() {
 	BAD=0
+	echo -n "Checking for "
 	for command in $*; do
-		echo -n "Checking for $command ... "
+		echo -n "$command "
 		$command --help >/dev/null 2>&1
 		rval=$?
 		if [ $rval -eq 126 ] || [ $rval -eq 127 ]; then
 			echo "-> not found!"
 			BAD=1
 		else
-			echo "OK"
+			echo -n "(OK) "
 		fi
 	done
+	echo
 	return $BAD
 }
 
@@ -119,7 +125,7 @@ fi
 if [ -z "$AUDIOTRACKS" ]; then
 	echo "No audio streams specified, autodetecting."
 	lsdvd -q -a -t $TRACK ${DVDISO} 2>/dev/null | grep Audio:
-	AT_HEX=$( lsdvd -q -a -t $TRACK ${DVDISO} 2>/dev/null | sed -n 's/.*Stream id: //p' )
+	AT_HEX=$( lsdvd -q -a -t $TRACK ${DVDISO} -Ox 2>/dev/null | sed -n 's,^ *<streamid>\(0x[0-9a-fA-F]\+\)</streamid>,\1,p' )
 	for a in $AT_HEX; do
 		AUDIOTRACKS=$( printf "%s %d" "$AUDIOTRACKS" $a )
 	done
@@ -133,8 +139,9 @@ fi
 # autodetect subtitles if none specified (and "none" is not specified:)
 if [ -z "$SUBTITLES" ]; then
 #	lsdvd -q -s -t $TRACK ${DVDISO} 2>/dev/null | grep Subtitle:
-	SUBTITLES=$( lsdvd -q -s -t $TRACK ${DVDISO} 2>/dev/null | sed -n 's/.*Language: \([a-z]\+\).*/\1/p' | tr '\n' ' ')
-	echo "No subtitles specified, autodetected the following: ${SUBTITLES:-none}"
+	SUBTITLES=$( lsdvd -q -s -t $TRACK ${DVDISO} -Ox 2>/dev/null | sed -n 's,^ *<langcode>\([a-zA-Z]\+\)</langcode>,\1,p' | tr '\n' ' ' )
+	SUBTITLES="${SUBTITLES:-none}"
+	echo "No subtitles specified, autodetected the following: ${SUBTITLES}"
 fi
 
 echo "************************************************"
@@ -168,7 +175,7 @@ if [ "$SUBTITLES" != "none" ]; then
 		fi
 	done
 else
-	echo "Skipping all subtitles as specified."
+	echo "Skipping all subtitles."
 fi
 
 # get audio tracks
@@ -275,7 +282,7 @@ fi
 rm -f *.ac3 *.idx *.mp4 x264_2pass.log
 
 date
-echo "Done."
+echo "Done. $SECONDS seconds have passed. Have a nice day."
 
 # vim: ai
 # EOT
