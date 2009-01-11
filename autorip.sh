@@ -10,7 +10,7 @@
 # - run with 'nice', preferably in 'screen' :)
 
 # packages needed:
-### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd
+### sudo apt-get install mplayer nencoder mkvtoolnix gpac x264 lsdvd
 
 function usage() {
 	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
@@ -57,7 +57,7 @@ SUBTITLES=""
 # parallel encoding of the video part (use as many as you have real CPU cores)
 THREADS=auto
 
-while getopts "hd:o:a:s:c:" OPTION; do
+while getopts "hd:o:a:s:c:t:" OPTION; do
 	case $OPTION in
 		h)
 			usage
@@ -87,7 +87,7 @@ while getopts "hd:o:a:s:c:" OPTION; do
 done
 
 if ! [ -e "$DVDISO" ]; then
-	echo "DVD data not found at $DVDISO"
+	echo "DVD data not found at file/device \"$DVDISO\" !"
 	exit 1
 fi
 
@@ -104,25 +104,56 @@ check_for mplayer mencoder MP4Box mkvmerge || exit 1
 if [ -z "$TRACK" ]; then
 	# longest track -- this is probably what you want
 	TRACK=$( lsdvd "${DVDISO}" | sed -n 's/Longest track: //p' )
+	echo "Targeting track $TRACK as longest track on the DVD.."
+fi
+
+# show what we're ripping
+lsdvd -t $TRACK ${DVDISO} 
+e=$?
+if [ $e -ne 0 ]; then
+	echo "*** Error accessing track $TRACK - check screen output (exit code $e)"
+	exit $e
 fi
 
 # get subtitles, if any
 for i in $SUBTITLES; do
+	date
+	echo "Getting subtitle: $i .."
 	mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i
+		-quiet -nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i \
+	> mplayer_sub_${i}.log 2>&1 
+	e=$?
+	if [ $e -ne 0 ]; then
+		echo "*** Error getting subtitle $i - check screen output (exit code $e)"
+		exit $e
+	fi
 done
 
 # get audio tracks
 for i in $AUDIOTRACKS; do
+	date
 	echo "Getting audio track $i (of $AUDIOTRACKS)..."
 	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-aid $i -dumpaudio -dumpfile title.${i}.ac3
+		-aid $i -dumpaudio -dumpfile title.${i}.ac3 \
+	> mplayer_audio_aid_${i}.log 2>&1
+	e=$?
+	if [ $e -ne 0 ]; then
+		echo "*** Error getting audio track aid $i - check screen output (exit code $e)"
+		exit $e
+	fi
 done
 # or get default if none was specified
 if [ -z "$AUDIOTRACKS" ]; then
+	date
 	echo "Getting default audio track ..."
 	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-dumpaudio -dumpfile title.ac3
+		-dumpaudio -dumpfile title.ac3 \
+	> mplayer_audio_default.log 2>&1
+	e=$?
+	if [ $e -ne 0 ]; then
+		echo "*** Error getting default audio track - check screen output (exit code $e)"
+		exit $e
+	fi
 fi
 
 # options from mplayer encoding howto:
@@ -133,23 +164,75 @@ fi
 # good quality
 #-x264encopts subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
 
+date
+echo "Starting encoding, pass 1 ..."
+
 # two-pass video encoding for quality (FIXME: do 3 passes make sense?)
-for i in 1 2; do
-	mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-ovc x264 \
-		-x264encopts subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
-		-oac copy \
-		-of rawvideo \
-		-passlogfile x264_2pass.log \
-		-o title.264
-done
+mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
+	-quiet \
+	-ovc x264 \
+	-x264encopts pass=1:subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
+	-oac copy \
+	-of rawvideo \
+	-passlogfile x264_2pass.log \
+	-o /dev/null \
+	> mencoder_pass1.log 2>&1
 
+e=$?
+if [ $e -ne 0 ]; then
+	echo "*** Error running first pass - check screen output (exit code $e)"
+	exit $e
+fi
+
+date
+echo "Encoding, pass 2 ..."
+
+mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
+	-quiet \
+	-ovc x264 \
+	-x264encopts pass=2:subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
+	-oac copy \
+	-of rawvideo \
+	-passlogfile x264_2pass.log \
+	-o title.264 \
+	> mencoder_pass2.log 2>&1
+
+e=$?
+if [ $e -ne 0 ]; then
+	echo "*** Error running second pass - check screen output (exit code $e)"
+	exit $e
+fi
+
+date
+echo "Preparing video container (MP4Box)..."
 # pack video into MP4 container
-MP4Box -add title.264 title.mp4 && rm -f title.264
+MP4Box -quiet -add title.264 title.mp4 && rm -f title.264 \
+	> mp4box.log 2>&1 
 
+e=$?
+if [ $e -ne 0 ]; then
+	echo "*** Error running MP4Box - check screen output (exit code $e)"
+	exit $e
+fi
+
+date
+echo "Assembling video and audio files (mkvmerge)..."
 # pack everything into a Matroska container
 # Magic: let the command run even if there are no audio tracks and/or subtitles
-mkvmerge -v -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) && \
-	rm -f *.ac3 *.idx *.mp4
+mkvmerge -v -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
+	> mkvmerge.log 2>&1
+
+e=$?
+if [ $e -ne 0 ]; then
+	echo "*** Error running mkvmerge - check screen output (exit code $e)"
+	exit $e
+fi
+
+# clean up
+# at this point we've succeeded
+rm -f *.ac3 *.idx *.mp4 x264_2pass.log
+
+date
+echo "Done."
 
 # EOT
