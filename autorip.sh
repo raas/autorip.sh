@@ -1,15 +1,17 @@
 #!/bin/bash
 #
 # RIP a dvd with multiple subtitles and audio tracks into a single Matroska file
-# *** NO WARRANTIES, NO ERROR CHECKING OF ANY KIND, YOU'RE ON YOUR OWN ***
+# at a very high quality using H.264 encoding
 #
-# make sure there's enough space in $CWD :)
+# *** NO WARRANTIES, YOU'RE ON YOUR OWN ***
+#
+# Make sure there's enough space in $CWD :) as it's used as temp space.
 #
 # Andras.Horvath nospam gmailcom 2008
 #
-# - run with 'nice', preferably in 'screen' :)
+# - run with 'nice', preferably in 'screen' 
 
-# packages needed:
+# Packages needed:
 ### sudo apt-get install mplayer nencoder mkvtoolnix gpac x264 lsdvd
 
 function usage() {
@@ -18,6 +20,8 @@ function usage() {
     echo "  -t trackid      -   rip this chapter (default: rip longest)"
     echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
     echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip ALL audio tracks), e.g. '0,128,129'"
+    echo "                      Specify \"default\" to include the default track only."
+    echo "                      Specify \"none\" to include no audio tracks at all."
     echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
     echo "                      Specify \"none\" to include no subtitles at all."
     echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
@@ -178,32 +182,42 @@ else
 	echo "Skipping all subtitles."
 fi
 
-# get audio tracks
-for i in $AUDIOTRACKS; do
-	date
-	echo "Getting audio track $i (of $AUDIOTRACKS)..."
-	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-aid $i -dumpaudio -dumpfile title.${i}.ac3 \
-	> mplayer_audio_aid_${i}.log 2>&1
-	e=$?
-	if [ $e -ne 0 ]; then
-		echo "*** Error getting audio track aid $i - check screen output (exit code $e)"
-		exit $e
-	fi
-done
-# or get default if none was specified
-if [ -z "$AUDIOTRACKS" ]; then
-	date
-	echo "Getting default audio track ..."
-	mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-		-dumpaudio -dumpfile title.ac3 \
-	> mplayer_audio_default.log 2>&1
-	e=$?
-	if [ $e -ne 0 ]; then
-		echo "*** Error getting default audio track - check screen output (exit code $e)"
-		exit $e
-	fi
-fi
+
+case "$AUDIOTRACKS" in
+	none)
+		echo "Skipping all audio tracks."
+		;;
+	default)
+		# get default if that was specified
+		if [ -z "$AUDIOTRACKS" ]; then
+			date
+			echo "Getting default audio track ..."
+			mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
+				-dumpaudio -dumpfile title.ac3 \
+			> mplayer_audio_default.log 2>&1
+			e=$?
+			if [ $e -ne 0 ]; then
+				echo "*** Error getting default audio track - check screen output (exit code $e)"
+				exit $e
+			fi
+		fi
+		;;
+	*)
+		# get all audio tracks...
+		for i in $AUDIOTRACKS; do
+			date
+			echo "Getting audio track $i (of $AUDIOTRACKS)..."
+			mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
+				-aid $i -dumpaudio -dumpfile title.${i}.ac3 \
+			> mplayer_audio_aid_${i}.log 2>&1
+			e=$?
+			if [ $e -ne 0 ]; then
+				echo "*** Error getting audio track aid $i - check screen output (exit code $e)"
+				exit $e
+			fi
+		done
+		;;
+esac
 
 # options from mplayer encoding howto:
 #
@@ -239,7 +253,7 @@ echo "Encoding, pass 2 ..."
 mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
 	-quiet \
 	-ovc x264 \
-	-x264encopts pass=2:subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
+	-x264encopts pass=2:subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS} \
 	-oac copy \
 	-of rawvideo \
 	-passlogfile x264_2pass.log \
@@ -279,7 +293,7 @@ fi
 
 # clean up
 # at this point we've succeeded
-rm -f *.ac3 *.idx *.mp4 x264_2pass.log
+rm -f title*.ac3 title*.idx title*.sub title.mp4 x264_2pass.log
 
 date
 echo "Done. $SECONDS seconds have passed. Have a nice day."
