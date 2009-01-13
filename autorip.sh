@@ -12,7 +12,7 @@
 # - run with 'nice', preferably in 'screen' 
 
 # Packages needed:
-### sudo apt-get install mplayer nencoder mkvtoolnix gpac x264 lsdvd
+### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd
 
 function usage() {
 	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
@@ -219,13 +219,8 @@ case "$AUDIOTRACKS" in
 		;;
 esac
 
-# options from mplayer encoding howto:
-#
-# fast
-#-x264encopts subq=4:bframes=2:bitrate=300:b_pyramid:weight_b:pass=$i:turbo=2:threads=2 \
-# 
-# good quality
-#-x264encopts subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
+# magic options from mplayer encoding howto:
+# http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
 
 date
 echo "Starting encoding, pass 1 ..."
@@ -282,7 +277,7 @@ date
 echo "Assembling video and audio files (mkvmerge)..."
 # pack everything into a Matroska container
 # Magic: let the command run even if there are no audio tracks and/or subtitles
-mkvmerge -v -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
+mkvmerge -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
 	> mkvmerge.log 2>&1
 
 e=$?
