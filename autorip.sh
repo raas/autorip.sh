@@ -118,7 +118,7 @@ if [ -z "$TRACK" ]; then
 	# longest track -- this is probably what you want
 	TRACK=$( lsdvd "${DVDISO}" 2>/dev/null | sed -n 's/Longest track: //p' )
 	if [ -z "$TRACK" ]; then
-		echo "Longest track not found and not specified -- check screen output.."
+		echo "Longest track not found and not specified -- check *.log.."
 		exit 1
 	else
 		echo "Targeting track $TRACK as longest track on the DVD.."
@@ -155,7 +155,7 @@ echo "DVD: $DVDISO track $TRACK"
 lsdvd -t $TRACK ${DVDISO} 2>/dev/null
 e=$?
 if [ $e -ne 0 ]; then
-	echo "*** Error accessing track $TRACK - check screen output (exit code $e)"
+	echo "*** Error accessing track $TRACK - check *.log (exit code $e)"
 	exit $e
 fi
 echo "Audio tracks: $AUDIOTRACKS"
@@ -174,7 +174,7 @@ if [ "$SUBTITLES" != "none" ]; then
 		> mplayer_sub_${i}.log 2>&1 
 		e=$?
 		if [ $e -ne 0 ]; then
-			echo "*** Error getting subtitle $i - check screen output (exit code $e)"
+			echo "*** Error getting subtitle $i - check *.log (exit code $e)"
 			exit $e
 		fi
 	done
@@ -197,7 +197,7 @@ case "$AUDIOTRACKS" in
 			> mplayer_audio_default.log 2>&1
 			e=$?
 			if [ $e -ne 0 ]; then
-				echo "*** Error getting default audio track - check screen output (exit code $e)"
+				echo "*** Error getting default audio track - check *.log (exit code $e)"
 				exit $e
 			fi
 		fi
@@ -212,7 +212,7 @@ case "$AUDIOTRACKS" in
 			> mplayer_audio_aid_${i}.log 2>&1
 			e=$?
 			if [ $e -ne 0 ]; then
-				echo "*** Error getting audio track aid $i - check screen output (exit code $e)"
+				echo "*** Error getting audio track aid $i - check *.log (exit code $e)"
 				exit $e
 			fi
 		done
@@ -222,25 +222,32 @@ esac
 # magic options from mplayer encoding howto:
 # http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
 
+# Try: qp=15
+## Try: trellis=2
 MAGIC_OPTIONS=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
+OTHER_MENCODER_OPTIONS="
+	-quiet
+	-ovc
+	x264
+	-vf filmdint,softskip
+	-oac copy
+	-of rawvideo
+"
 
 date
 echo "Starting encoding, pass 1 ..."
 
 # two-pass video encoding for quality (FIXME: do 3 passes make sense?)
 mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-	-quiet \
-	-ovc x264 \
+	$OTHER_MENCODER_OPTIONS \
 	-x264encopts pass=1:turbo=1:$MAGIC_OPTIONS \
-	-oac copy \
-	-of rawvideo \
 	-passlogfile x264_2pass.log \
 	-o /dev/null \
 	> mencoder_pass1.log 2>&1
 
 e=$?
 if [ $e -ne 0 ]; then
-	echo "*** Error running first pass - check screen output (exit code $e)"
+	echo "*** Error running first pass - check *.log (exit code $e)"
 	exit $e
 fi
 
@@ -248,18 +255,15 @@ date
 echo "Encoding, pass 2 ..."
 
 mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-	-quiet \
-	-ovc x264 \
+	$OTHER_MENCODER_OPTIONS \
 	-x264encopts pass=2:$MAGIC_OPTIONS \
-	-oac copy \
-	-of rawvideo \
 	-passlogfile x264_2pass.log \
 	-o title.264 \
 	> mencoder_pass2.log 2>&1
 
 e=$?
 if [ $e -ne 0 ]; then
-	echo "*** Error running second pass - check screen output (exit code $e)"
+	echo "*** Error running second pass - check *.log (exit code $e)"
 	exit $e
 fi
 
@@ -271,7 +275,7 @@ MP4Box -quiet -add title.264 title.mp4 && rm -f title.264 \
 
 e=$?
 if [ $e -ne 0 ]; then
-	echo "*** Error running MP4Box - check screen output (exit code $e)"
+	echo "*** Error running MP4Box - check *.log (exit code $e)"
 	exit $e
 fi
 
@@ -284,7 +288,7 @@ mkvmerge -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/n
 
 e=$?
 if [ $e -ne 0 ]; then
-	echo "*** Error running mkvmerge - check screen output (exit code $e)"
+	echo "*** Error running mkvmerge - check *.log (exit code $e)"
 	exit $e
 fi
 
