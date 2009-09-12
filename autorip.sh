@@ -222,6 +222,8 @@ esac
 # magic options from mplayer encoding howto:
 # http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
 
+MAGIC_OPTIONS=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
+
 date
 echo "Starting encoding, pass 1 ..."
 
@@ -229,7 +231,7 @@ echo "Starting encoding, pass 1 ..."
 mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
 	-quiet \
 	-ovc x264 \
-	-x264encopts pass=1:subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:turbo=1:threads=${THREADS} \
+	-x264encopts pass=1:turbo=1:$MAGIC_OPTIONS \
 	-oac copy \
 	-of rawvideo \
 	-passlogfile x264_2pass.log \
@@ -248,7 +250,7 @@ echo "Encoding, pass 2 ..."
 mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
 	-quiet \
 	-ovc x264 \
-	-x264encopts pass=2:subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS} \
+	-x264encopts pass=2:$MAGIC_OPTIONS \
 	-oac copy \
 	-of rawvideo \
 	-passlogfile x264_2pass.log \
