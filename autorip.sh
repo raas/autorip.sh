@@ -215,6 +215,10 @@ case "$AUDIOTRACKS" in
 				echo "*** Error getting audio track aid $i - check *.log (exit code $e)"
 				exit $e
 			fi
+			if [ ! -s title.${i}.ac3 ]; then
+				echo "*** Warning: audio track $i is empty -- deleting"
+				rm -f title.${i}.ac3
+			fi
 		done
 		;;
 esac
