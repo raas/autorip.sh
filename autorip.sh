@@ -142,7 +142,9 @@ fi
 
 # autodetect subtitles if none specified (and "none" is not specified:)
 if [ -z "$SUBTITLES" ]; then
-	SUBTITLES=$( grep -F '==> Found subtitle:' mplayer_examine.out  | sed 's/==> Found subtitle://g' | tr -d '\n' )
+	# these go by name, not by ID
+	#SUBTITLES=$( grep -F '==> Found subtitle:' mplayer_examine.out  | sed 's/==> Found subtitle://g' | tr -d '\n' )
+	SUBTITLES=$( grep -F 'subtitle ( sid ):' mplayer_examine.out | sed 's/.*language://g' | tr -d '\n' )
 	echo "No subtitles specified, autodetected the following: ${SUBTITLES}"
 fi
 
@@ -225,14 +227,10 @@ esac
 # magic options from mplayer encoding howto:
 # http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
 
-# Try: qp=15
-## Try: trellis=2
 MAGIC_OPTIONS=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
 OTHER_MENCODER_OPTIONS="
 	-quiet
-	-ovc
-	x264
-	-vf filmdint,softskip
+	-ovc x264
 	-oac copy
 	-of rawvideo
 "
@@ -260,6 +258,7 @@ echo "Encoding, pass 2 ..."
 mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
 	$OTHER_MENCODER_OPTIONS \
 	-x264encopts pass=2:$MAGIC_OPTIONS \
+	-vf filmdint,softskip,harddup \
 	-passlogfile x264_2pass.log \
 	-o title.264 \
 	> mencoder_pass2.log 2>&1
