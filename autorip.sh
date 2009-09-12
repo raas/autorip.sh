@@ -12,7 +12,7 @@
 # - run with 'nice', preferably in 'screen' 
 
 # Packages needed:
-### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd
+### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
 
 function usage() {
 	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
@@ -108,7 +108,7 @@ if [ -z "$OUTMKV" ]; then
 fi
 
 # check dependencies
-check_for mplayer mencoder MP4Box mkvmerge || exit 1
+check_for sed grep tr mplayer mencoder MP4Box mkvmerge || exit 1
 
 echo "------------------------------------"
 
@@ -125,14 +125,14 @@ if [ -z "$TRACK" ]; then
 	fi
 fi
 
+# prepare for autodetection -- dump information to parse later
+# lsdvd is unreliable in this matter :( mplayer does a better job
+mplayer -v -nosound -novideo dvd://${TRACK} -dvd-device ${DVDISO} > mplayer_examine.out 2>/dev/null
+
 # autodetect audio tracks if none specified
 if [ -z "$AUDIOTRACKS" ]; then
 	echo "No audio streams specified, autodetecting."
-	lsdvd -q -a -t $TRACK ${DVDISO} 2>/dev/null | grep Audio:
-	AT_HEX=$( lsdvd -q -a -t $TRACK ${DVDISO} -Ox 2>/dev/null | sed -n 's,^ *<streamid>\(0x[0-9a-fA-F]\+\)</streamid>,\1,p' )
-	for a in $AT_HEX; do
-		AUDIOTRACKS=$( printf "%s %d" "$AUDIOTRACKS" $a )
-	done
+	AUDIOTRACKS=$( grep -F '==> Found audio stream:' mplayer_examine.out  | sed 's/==> Found audio stream://g' | tr -d '\n')
 	if [ -z "$AUDIOTRACKS" ]; then
 		echo "*** WARNING WARNING WARNING: No audio tracks detected, is this normal? ***"
 	else
@@ -142,9 +142,7 @@ fi
 
 # autodetect subtitles if none specified (and "none" is not specified:)
 if [ -z "$SUBTITLES" ]; then
-#	lsdvd -q -s -t $TRACK ${DVDISO} 2>/dev/null | grep Subtitle:
-	SUBTITLES=$( lsdvd -q -s -t $TRACK ${DVDISO} -Ox 2>/dev/null | sed -n 's,^ *<langcode>\([a-zA-Z]\+\)</langcode>,\1,p' | tr '\n' ' ' )
-	SUBTITLES="${SUBTITLES:-none}"
+	SUBTITLES=$( grep -F '==> Found subtitle:' mplayer_examine.out  | sed 's/==> Found subtitle://g' | tr -d '\n' )
 	echo "No subtitles specified, autodetected the following: ${SUBTITLES}"
 fi
 
@@ -189,17 +187,18 @@ case "$AUDIOTRACKS" in
 		;;
 	default)
 		# get default if that was specified
-		if [ -z "$AUDIOTRACKS" ]; then
-			date
-			echo "Getting default audio track ..."
-			mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-				-dumpaudio -dumpfile title.ac3 \
-			> mplayer_audio_default.log 2>&1
-			e=$?
-			if [ $e -ne 0 ]; then
-				echo "*** Error getting default audio track - check *.log (exit code $e)"
-				exit $e
-			fi
+		echo "Getting default audio track ..."
+		mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
+			-dumpaudio -dumpfile title.ac3 \
+		> mplayer_audio_default.log 2>&1
+		e=$?
+		if [ $e -ne 0 ]; then
+			echo "*** Error getting default audio track - check *.log (exit code $e)"
+			exit $e
+		fi
+		if [ ! -s title.ac3 ]; then
+			echo "*** WARNING WARNING WARNING: default audio track is empty -- deleting"
+			rm -f title.ac3
 		fi
 		;;
 	*)
