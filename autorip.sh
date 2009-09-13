@@ -1,20 +1,17 @@
 #!/bin/bash
 #
-# RIP a dvd with multiple subtitles and audio tracks into a single Matroska file
-# at a very high quality using H.264 encoding
+# Autorip.sh -- RIP a dvd with multiple subtitles and audio tracks into a single
+# Matroska file at a very high quality using H.264 encoding and deinterlacing
 #
-# *** NO WARRANTIES, YOU'RE ON YOUR OWN ***
+# See README
 #
-# Make sure there's enough space in $CWD :) as it's used as temp space.
-#
-# Andras.Horvath nospam gmailcom 2008
-#
-# - run with 'nice', preferably in 'screen' 
+# Andras.Horvath nospam gmailcom 2009
 
 # Packages needed:
 ### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
 
 function usage() {
+	echo "Autorip.sh v1.0"
 	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
 	echo "Options:"
     echo "  -t trackid      -   rip this chapter (default: rip longest)"
@@ -25,7 +22,9 @@ function usage() {
     echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
     echo "                      Specify \"none\" to include no subtitles at all."
     echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
-	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers etc."
+	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers and subtitle names."
+	echo "It is recommended to rip from a DVD image or copy, not directly from a drive"
+	echo "(input data is read several times)"
 	exit 1
 }
 

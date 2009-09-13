@@ -1,0 +1,27 @@
+Autorip.sh -- RIP a dvd with multiple subtitles and audio tracks into a single
+Matroska file at a very high quality using H.264 encoding and deinterlacing
+
+ *** NO WARRANTIES, YOU'RE ON YOUR OWN ***
+
+- Make sure there's enough space in $CWD :) as it's used as temp space.
+- The DVD is read several times so you'll probably prefer to rip from an image.
+  e.g. run:
+
+  $ dd if=/dev/scd0 of=my.iso
+  $ autorip.sh -d my.iso
+
+- run with 'nice', preferably in 'screen'. Refer to the nice(1) and screen(1)
+  manual pages for details.
+
+- Run with '-h' for help and description of options.
+  $ autorip.sh -h
+
+
+Andras.Horvath nospam gmailcom 2009
+
+
+TODO:
+	- more error checking of arguments
+	- automatically create image file if argument is a real DVD reader
+	- see if ripping time can be optimized without cost of quality
+	- add recoding support (not just DVDs but any video/subtitle combinations)
