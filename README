@@ -6,7 +6,7 @@ $ sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
 
  *** NO WARRANTIES, YOU'RE ON YOUR OWN ***
 
-- Make sure there's enough space in the current directory  as it's used as temp
+- Make sure there's enough space in the current directory as it's used as temp
   space.
 - The DVD is read several times so you'll probably prefer to rip from an image.
   e.g. run:
