@@ -5,13 +5,27 @@
 #
 # See README
 #
-# Andras.Horvath nospam gmailcom 2009
-
 # Packages needed:
-### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
+# sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
+#
+#
+#
+# Copyright 2009 Andras Horvath (andras.horvath nospamat gmailcom)
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+# 
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 function usage() {
-	echo "Autorip.sh v1.0"
 	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
 	echo "Options:"
     echo "  -t trackid      -   rip this chapter (default: rip longest)"
@@ -28,6 +42,11 @@ function usage() {
 	exit 1
 }
 
+echo "Autorip.sh v1.0 Copyright (C) 2009 Andras Horvath"
+echo "License GPLv3: GNU GPL version 3 (see COPYING for details)"
+echo "This is free software: you are free to change and redistribute it."
+echo "There is NO WARRANTY, to the extent permitted by law."
+echo
 
 if [ $# -eq 0 ]; then
 	usage

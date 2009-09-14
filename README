@@ -1,10 +1,24 @@
 Autorip.sh -- RIP a dvd with multiple subtitles and audio tracks into a single
 Matroska file at a very high quality using H.264 encoding and deinterlacing
 
+----------------------------------------------------------------------------
+
+Copyright 2009 Andras Horvath (andras.horvath nospamat gmailcom) This program
+is free software: you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program.  If not, see <http://www.gnu.org/licenses/>.
+
+----------------------------------------------------------------------------
+
 To install dependencies (on debian/ubuntu):
 $ sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
-
- *** NO WARRANTIES, YOU'RE ON YOUR OWN ***
 
 - Make sure there's enough space in the current directory as it's used as temp
   space.
@@ -19,10 +33,6 @@ $ sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
 
 - Run with '-h' for help and description of options.
   $ autorip.sh -h
-
-
-Andras.Horvath nospam gmailcom 2009
-
 
 TODO:
 	- more error checking of arguments
