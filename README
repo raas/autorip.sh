@@ -28,6 +28,12 @@ $ sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
   $ dd if=/dev/scd0 of=my.iso
   $ autorip.sh -d my.iso
 
+  For a copy-protected, region-coded or otherwise screwed-up DVD, use dvdbackup
+  (http://dvdbackup.sourceforge.net/) to create a directory hierarchy, then run
+  autorip.sh against the top-level directory. For best results, the dvdcss or
+  libdvdread4 package should be installed (on debian or ubuntu, run
+  /usr/share/doc/libdvdread4/install-css.sh afterwards.)
+
 - run with 'nice', preferably in 'screen'. Refer to the nice(1) and screen(1)
   manual pages for details.
 
