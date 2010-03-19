@@ -23,7 +23,7 @@ function usage() {
     echo "                      Specify \"none\" to include no subtitles at all."
     echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
 	echo "  -f              -   Use 'fast' encoding instead of 'best' (for testing, mostly)"
-	echo "  -s stage        -   Execute 'stage' only, one of [ripsubtitle,ripaudio,ripvideo,mkcontainer,merge,cleanup]"
+	echo "  -e stage        -   Execute 'stage' only, one of [ripsubtitle,ripaudio,ripvideo,mkcontainer,merge,cleanup]"
 	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers and subtitle names."
 	echo "It is recommended to rip from a DVD image or copy, not directly from a drive"
 	echo "(input data is read several times)"
@@ -229,7 +229,7 @@ if [ $# -eq 0 ]; then
 	usage
 fi
 
-while getopts "hfd:o:a:s:c:t:s:" OPTION; do
+while getopts "hfd:o:a:s:c:t:e:" OPTION; do
 	case $OPTION in
 		h)
 			usage
@@ -255,14 +255,13 @@ while getopts "hfd:o:a:s:c:t:s:" OPTION; do
 		f)
 			USE_FAST=1
 			;;
-		s)
-			
+		e)
 			case "$OPTARG" in
 				ripsubtitle|ripaudio|ripvideo|mkcontainer|merge|cleanup)
 					STAGE=$OPTARG			
 					;;
 				*)
-					echo "-s: invalid stage, see help."
+					echo "-e: invalid stage, see help."
 					exit 1
 					;;
 			esac
