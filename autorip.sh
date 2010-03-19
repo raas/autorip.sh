@@ -14,14 +14,14 @@ function usage() {
 	echo "Autorip.sh v1.0"
 	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
 	echo "Options:"
-    echo "  -t trackid      -   rip this chapter (default: rip longest)"
-    echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
-    echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip ALL audio tracks), e.g. '0,128,129'"
-    echo "                      Specify \"default\" to include the default track only."
-    echo "                      Specify \"none\" to include no audio tracks at all."
-    echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
-    echo "                      Specify \"none\" to include no subtitles at all."
-    echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
+	echo "  -t trackid      -   rip this chapter (default: rip longest)"
+	echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
+	echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip ALL audio tracks), e.g. '0,128,129'"
+	echo "                      Specify \"default\" to include the default track only."
+	echo "                      Specify \"none\" to include no audio tracks at all."
+	echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
+	echo "                      Specify \"none\" to include no subtitles at all."
+	echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
 	echo "  -f              -   Use 'fast' encoding instead of 'best' (for testing, mostly)"
 	echo "  -e stage        -   Execute 'stage' only, one of [ripsubtitle,ripaudio,ripvideo,mkcontainer,merge,cleanup]"
 	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers and subtitle names."
@@ -40,7 +40,7 @@ function rip_audio() {
 		default)
 			# get default if that was specified
 			echo "Getting default audio track ..."
-			mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
+			mplayer -vo null dvd://${TRACK} -dvd-device "${DVDISO}" \
 				-dumpaudio -dumpfile title.ac3 \
 			> mplayer_audio_default.log 2>&1
 			e=$?
@@ -58,7 +58,7 @@ function rip_audio() {
 			for i in $AUDIOTRACKS; do
 				date
 				echo "Getting audio track $i (of $AUDIOTRACKS)..."
-				mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
+				mplayer -vo null dvd://${TRACK} -dvd-device "${DVDISO}" \
 					-aid $i -dumpaudio -dumpfile title.${i}.ac3 \
 				> mplayer_audio_aid_${i}.log 2>&1
 				e=$?
@@ -335,7 +335,7 @@ if [ $e -ne 0 ]; then
 fi
 echo "Audio tracks: $AUDIOTRACKS"
 echo "Subtitles: $SUBTITLES"
-if [ -n "$USE_FAST" ]; then
+if [ "$USE_FAST" == "1" ]; then
 	echo "Using FAST encoding."
 	MAGIC_OPTIONS="$MAGIC_OPTIONS_FAST"
 else
@@ -383,5 +383,5 @@ fi
 date
 echo "Done. $SECONDS seconds have passed. Have a nice day."
 
-# vim: ai
+# vim: ai bg=dark noexpandtab
 # EOT
