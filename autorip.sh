@@ -266,6 +266,7 @@ while getopts "hfd:o:a:s:c:t:s:" OPTION; do
 					exit 1
 					;;
 			esac
+			;;
 		*)
 			echo "Invalid argument $OPTION"
 			exit 1
