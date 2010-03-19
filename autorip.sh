@@ -23,6 +23,7 @@ function usage() {
     echo "                      Specify \"none\" to include no subtitles at all."
     echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
 	echo "  -f              -   Use 'fast' encoding instead of 'best' (for testing, mostly)"
+	echo "  -s stage        -   Execute 'stage' only, one of [ripsubtitle,ripaudio,ripvideo,mkcontainer,merge,cleanup]"
 	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers and subtitle names."
 	echo "It is recommended to rip from a DVD image or copy, not directly from a drive"
 	echo "(input data is read several times)"
@@ -228,7 +229,7 @@ if [ $# -eq 0 ]; then
 	usage
 fi
 
-while getopts "hd:o:a:s:c:t:f" OPTION; do
+while getopts "hfd:o:a:s:c:t:s:" OPTION; do
 	case $OPTION in
 		h)
 			usage
@@ -253,8 +254,21 @@ while getopts "hd:o:a:s:c:t:f" OPTION; do
 			;;
 		f)
 			USE_FAST=1
+			;;
+		s)
+			
+			case "$OPTARG" in
+				ripsubtitle|ripaudio|ripvideo|mkcontainer|merge|cleanup)
+					STAGE=$OPTARG			
+					;;
+				*)
+					echo "-s: invalid stage, see help."
+					exit 1
+					;;
+			esac
 		*)
 			echo "Invalid argument $OPTION"
+			exit 1
 			;;
 	esac
 done
@@ -328,16 +342,43 @@ else
 	echo "Using BEST encoding."
 	MAGIC_OPTIONS="$MAGIC_OPTIONS_BEST"
 fi
+
+[ -n "$STAGE" ]  && echo "-> running stage $STAGE only"
+
 echo "************************************************"
 
 ################################## getting down to actual ripping
 
-rip_subtitles
-rip_audio
-encode_video
-make_container
-run_merge
-do_cleanup
+if [ -z "$STAGE" ]; then
+	rip_subtitles
+	rip_audio
+	encode_video
+	make_container
+	run_merge
+	do_cleanup
+else
+	case "$STAGE" in
+	ripsubtitle)
+		rip_subtitles
+		;;
+	ripaudio)
+		rip_audio
+		;;
+	ripvideo)
+		encode_video
+		;;
+	mkcontainer)
+		make_container
+		;;
+	merge)
+		run_merge
+		;;
+	cleanup)
+		do_cleanup
+		;;
+	esac
+	exit 0
+fi
 
 date
 echo "Done. $SECONDS seconds have passed. Have a nice day."
