@@ -22,6 +22,7 @@ function usage() {
     echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
     echo "                      Specify \"none\" to include no subtitles at all."
     echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
+	echo "  -f              -   Use 'fast' encoding instead of 'best' (for testing, mostly)"
 	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers and subtitle names."
 	echo "It is recommended to rip from a DVD image or copy, not directly from a drive"
 	echo "(input data is read several times)"
@@ -210,7 +211,8 @@ THREADS=auto
 # magic options from mplayer encoding howto:
 # http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
 
-MAGIC_OPTIONS=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
+MAGIC_OPTIONS_BEST=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
+MAGIC_OPTIONS_FAST=subq=4:bframes=2:b_pyramid:weight_b:bitrate=500:threads=${THREADS}
 OTHER_MENCODER_OPTIONS="
 	-quiet
 	-ovc x264
@@ -218,13 +220,15 @@ OTHER_MENCODER_OPTIONS="
 	-of rawvideo
 "
 
+USE_FAST=0
+
 # -----------------------------------------------------------------------
 
 if [ $# -eq 0 ]; then
 	usage
 fi
 
-while getopts "hd:o:a:s:c:t:" OPTION; do
+while getopts "hd:o:a:s:c:t:f" OPTION; do
 	case $OPTION in
 		h)
 			usage
@@ -247,6 +251,8 @@ while getopts "hd:o:a:s:c:t:" OPTION; do
 		c)
 			THREADS=${OPTARG}
 			;;
+		f)
+			USE_FAST=1
 		*)
 			echo "Invalid argument $OPTION"
 			;;
@@ -315,6 +321,13 @@ if [ $e -ne 0 ]; then
 fi
 echo "Audio tracks: $AUDIOTRACKS"
 echo "Subtitles: $SUBTITLES"
+if [ -n "$USE_FAST" ]; then
+	echo "Using FAST encoding."
+	MAGIC_OPTIONS="$MAGIC_OPTIONS_FAST"
+else
+	echo "Using BEST encoding."
+	MAGIC_OPTIONS="$MAGIC_OPTIONS_BEST"
+fi
 echo "************************************************"
 
 ################################## getting down to actual ripping
