@@ -8,7 +8,7 @@
 # Andras.Horvath nospam gmailcom 2009
 
 # Packages needed:
-### sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
+### sudo apt-get install mplayer mencoder mkvtoolnix x264 lsdvd grep sed
 
 function usage() {
 	echo "Autorip.sh v1.0"
@@ -23,7 +23,7 @@ function usage() {
 	echo "                      Specify \"none\" to include no subtitles at all."
 	echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
 	echo "  -f              -   Use 'fast' encoding instead of 'best' (for testing, mostly)"
-	echo "  -e stage        -   Execute 'stage' only, one of [ripsubtitle,ripaudio,ripvideo,mkcontainer,merge,cleanup]"
+	echo "  -e stage        -   Execute 'stage' only, one of [ripsubtitle,ripaudio,ripvideo,merge,cleanup]"
 	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers and subtitle names."
 	echo "It is recommended to rip from a DVD image or copy, not directly from a drive"
 	echo "(input data is read several times)"
@@ -134,20 +134,20 @@ function encode_video() {
 	fi
 }
 
-# -----------------------------------------------------------------------
-function make_container() {
-	date
-	echo "Preparing video container (MP4Box)..."
-	# pack video into MP4 container
-	MP4Box -quiet -add title.264 title.mp4 && rm -f title.264 \
-		> mp4box.log 2>&1 
-
-	e=$?
-	if [ $e -ne 0 ]; then
-		echo "*** Error running MP4Box - check *.log (exit code $e)"
-		exit $e
-	fi
-}
+## -----------------------------------------------------------------------
+#function make_container() {
+#	date
+#	echo "Preparing video container (MP4Box)..."
+#	# pack video into MP4 container
+#	MP4Box -quiet -add title.264 title.mp4 && rm -f title.264 \
+#		> mp4box.log 2>&1 
+#
+#	e=$?
+#	if [ $e -ne 0 ]; then
+#		echo "*** Error running MP4Box - check *.log (exit code $e)"
+#		exit $e
+#	fi
+#}
 # -----------------------------------------------------------------------
 
 function run_merge() {
@@ -155,7 +155,7 @@ function run_merge() {
 	echo "Assembling video and audio files (mkvmerge)..."
 	# pack everything into a Matroska container
 	# Magic: let the command run even if there are no audio tracks and/or subtitles
-	mkvmerge -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
+	mkvmerge -o "${OUTMKV}" title.264 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
 		> mkvmerge.log 2>&1
 
 	e=$?
@@ -257,7 +257,7 @@ while getopts "hfd:o:a:s:c:t:e:" OPTION; do
 			;;
 		e)
 			case "$OPTARG" in
-				ripsubtitle|ripaudio|ripvideo|mkcontainer|merge|cleanup)
+				ripsubtitle|ripaudio|ripvideo|merge|cleanup)
 					STAGE=$OPTARG			
 					;;
 				*)
@@ -284,7 +284,7 @@ if [ -z "$OUTMKV" ]; then
 fi
 
 # check dependencies
-check_for sed grep tr mplayer mencoder MP4Box mkvmerge || exit 1
+check_for sed grep tr mplayer mencoder mkvmerge || exit 1
 
 echo "------------------------------------"
 
@@ -353,7 +353,7 @@ if [ -z "$STAGE" ]; then
 	rip_subtitles
 	rip_audio
 	encode_video
-	make_container
+#	make_container
 	run_merge
 	do_cleanup
 else
@@ -367,9 +367,9 @@ else
 	ripvideo)
 		encode_video
 		;;
-	mkcontainer)
-		make_container
-		;;
+#	mkcontainer)
+#		make_container
+#		;;
 	merge)
 		run_merge
 		;;
