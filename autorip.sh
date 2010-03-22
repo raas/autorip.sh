@@ -78,7 +78,6 @@ function rip_audio() {
 # -----------------------------------------------------------------------
 
 function rip_subtitles() {
-	date
 	# get subtitles, if any
 	if [ "$SUBTITLES" != "none" ]; then
 		for i in $SUBTITLES; do
@@ -101,9 +100,16 @@ function rip_subtitles() {
 # -----------------------------------------------------------------------
 
 function encode_video() {
-	echo "Starting encoding, pass 1 ..."
 	# two-pass video encoding for quality (FIXME: do 3 passes make sense?)
-	mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
+	date
+	echo "Starting encoding, pass 1 ..."
+	# now, here's magic again:
+	# -ofps is needed to properly rip NTSC (30000/1001 fps) videos
+	# since audio and subtitle ripping will be done at 25fps 
+	# and I have no idea how to force that properly.
+	# Also, order of arguments to mencoder seems to matter --
+	# therefore -ofps is here and not in $OTHER_MENCODER_OPTIONS
+	mencoder -ofps 25 dvd://${TRACK} -dvd-device "${DVDISO}" \
 		$OTHER_MENCODER_OPTIONS \
 		-x264encopts pass=1:turbo=1:$MAGIC_OPTIONS \
 		-passlogfile x264_2pass.log \
@@ -119,7 +125,7 @@ function encode_video() {
 	date
 	echo "Encoding, pass 2 ..."
 
-	mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
+	mencoder -ofps 25 dvd://${TRACK} -dvd-device "${DVDISO}" \
 		$OTHER_MENCODER_OPTIONS \
 		-x264encopts pass=2:$MAGIC_OPTIONS \
 		-vf filmdint,softskip,harddup \
@@ -134,20 +140,6 @@ function encode_video() {
 	fi
 }
 
-## -----------------------------------------------------------------------
-#function make_container() {
-#	date
-#	echo "Preparing video container (MP4Box)..."
-#	# pack video into MP4 container
-#	MP4Box -quiet -add title.264 title.mp4 && rm -f title.264 \
-#		> mp4box.log 2>&1 
-#
-#	e=$?
-#	if [ $e -ne 0 ]; then
-#		echo "*** Error running MP4Box - check *.log (exit code $e)"
-#		exit $e
-#	fi
-#}
 # -----------------------------------------------------------------------
 
 function run_merge() {
@@ -169,7 +161,7 @@ function run_merge() {
 function do_cleanup() {
 	# clean up
 	# at this point we've succeeded
-	rm -f title*.ac3 title*.idx title*.sub title.mp4 x264_2pass.log
+	rm -f title*.ac3 title*.idx title*.sub title.264 x264_2pass.log
 }
 # -----------------------------------------------------------------------
 
@@ -213,7 +205,7 @@ THREADS=auto
 # http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
 
 MAGIC_OPTIONS_BEST=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
-MAGIC_OPTIONS_FAST=subq=4:bframes=2:b_pyramid:weight_b:bitrate=500:threads=${THREADS}
+MAGIC_OPTIONS_FAST=turbo=1:subq=4:bframes=2:b_pyramid:weight_b:bitrate=200:threads=${THREADS}
 OTHER_MENCODER_OPTIONS="
 	-quiet
 	-ovc x264
@@ -353,7 +345,6 @@ if [ -z "$STAGE" ]; then
 	rip_subtitles
 	rip_audio
 	encode_video
-#	make_container
 	run_merge
 	do_cleanup
 else
@@ -367,9 +358,6 @@ else
 	ripvideo)
 		encode_video
 		;;
-#	mkcontainer)
-#		make_container
-#		;;
 	merge)
 		run_merge
 		;;
