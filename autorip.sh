@@ -6,7 +6,7 @@
 # See README
 #
 # Packages needed:
-# sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
+### sudo apt-get install mplayer mencoder mkvtoolnix x264 lsdvd grep sed
 #
 #
 #
@@ -24,33 +24,165 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 function usage() {
 	echo "Usage: $0 [options] -d <dvd.iso|dvddevice|directory with dvd tree>"
 	echo "Options:"
-    echo "  -t trackid      -   rip this chapter (default: rip longest)"
-    echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
-    echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip ALL audio tracks), e.g. '0,128,129'"
-    echo "                      Specify \"default\" to include the default track only."
-    echo "                      Specify \"none\" to include no audio tracks at all."
-    echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
-    echo "                      Specify \"none\" to include no subtitles at all."
-    echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
+	echo "  -t trackid      -   rip this chapter (default: rip longest)"
+	echo "  -o outfile.mkv  -   place final results in that file (default: <dvdfilename>.mkv)"
+	echo "  -a id1,id2,id3  -   audio tracks to rip (default: rip ALL audio tracks), e.g. '0,128,129'"
+	echo "                      Specify \"default\" to include the default track only."
+	echo "                      Specify \"none\" to include no audio tracks at all."
+	echo "  -s lang1,lang2  -   subtitles to rip (default: ALL subtitles), e.g. 'hu,en'. "
+	echo "                      Specify \"none\" to include no subtitles at all."
+	echo "  -c cpucount     -   use this many CPUs for calculations (default: 'auto' = all of them)"
+	echo "  -f              -   Use 'fast' encoding instead of 'best' (for testing, mostly)"
+	echo "  -e stage        -   Execute 'stage' only, one of [ripsubtitle,ripaudio,ripvideo,merge,cleanup]"
 	echo "Use 'mplayer -v' or 'lsdvd' to determine audio track numbers and subtitle names."
 	echo "It is recommended to rip from a DVD image or copy, not directly from a drive"
 	echo "(input data is read several times)"
 	exit 1
 }
+# -----------------------------------------------------------------------
 
-echo "Autorip.sh v1.0 Copyright (C) 2009 Andras Horvath"
+echo "Autorip.sh v1.1 Copyright (C) 2009 Andras Horvath"
 echo "License GPLv3: GNU GPL version 3 (see COPYING for details)"
 echo "This is free software: you are free to change and redistribute it."
 echo "There is NO WARRANTY, to the extent permitted by law."
 echo
 
-if [ $# -eq 0 ]; then
-	usage
-fi
+function rip_audio() {
+	date
+	case "$AUDIOTRACKS" in
+		none)
+			echo "Skipping all audio tracks."
+			;;
+		default)
+			# get default if that was specified
+			echo "Getting default audio track ..."
+			mplayer -vo null dvd://${TRACK} -dvd-device "${DVDISO}" \
+				-dumpaudio -dumpfile title.ac3 \
+			> mplayer_audio_default.log 2>&1
+			e=$?
+			if [ $e -ne 0 ]; then
+				echo "*** Error getting default audio track - check *.log (exit code $e)"
+				exit $e
+			fi
+			if [ ! -s title.ac3 ]; then
+				echo "*** WARNING WARNING WARNING: default audio track is empty -- deleting"
+				rm -f title.ac3
+			fi
+			;;
+		*)
+			# get all audio tracks...
+			for i in $AUDIOTRACKS; do
+				date
+				echo "Getting audio track $i (of $AUDIOTRACKS)..."
+				mplayer -vo null dvd://${TRACK} -dvd-device "${DVDISO}" \
+					-aid $i -dumpaudio -dumpfile title.${i}.ac3 \
+				> mplayer_audio_aid_${i}.log 2>&1
+				e=$?
+				if [ $e -ne 0 ]; then
+					echo "*** Error getting audio track aid $i - check *.log (exit code $e)"
+					exit $e
+				fi
+				if [ ! -s title.${i}.ac3 ]; then
+					echo "*** Warning: audio track $i is empty -- deleting"
+					rm -f title.${i}.ac3
+				fi
+			done
+			;;
+	esac
+}
+
+# -----------------------------------------------------------------------
+
+function rip_subtitles() {
+	# get subtitles, if any
+	if [ "$SUBTITLES" != "none" ]; then
+		for i in $SUBTITLES; do
+			date
+			echo "Getting subtitle: $i .."
+			mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
+				-quiet -nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i \
+			> mplayer_sub_${i}.log 2>&1 
+			e=$?
+			if [ $e -ne 0 ]; then
+				echo "*** Error getting subtitle $i - check *.log (exit code $e)"
+				exit $e
+			fi
+		done
+	else
+		echo "Skipping all subtitles."
+	fi
+}
+
+# -----------------------------------------------------------------------
+
+function encode_video() {
+	# two-pass video encoding for quality (FIXME: do 3 passes make sense?)
+	date
+	echo "Starting encoding, pass 1 ..."
+	# now, here's magic again:
+	# -ofps is needed to properly rip NTSC (30000/1001 fps) videos
+	# since audio and subtitle ripping will be done at 25fps 
+	# and I have no idea how to force that properly.
+	# Also, order of arguments to mencoder seems to matter --
+	# therefore -ofps is here and not in $OTHER_MENCODER_OPTIONS
+	mencoder -ofps 25 dvd://${TRACK} -dvd-device "${DVDISO}" \
+		$OTHER_MENCODER_OPTIONS \
+		-x264encopts pass=1:turbo=1:$MAGIC_OPTIONS \
+		-passlogfile x264_2pass.log \
+		-o /dev/null \
+		> mencoder_pass1.log 2>&1
+
+	e=$?
+	if [ $e -ne 0 ]; then
+		echo "*** Error running first pass - check *.log (exit code $e)"
+		exit $e
+	fi
+
+	date
+	echo "Encoding, pass 2 ..."
+
+	mencoder -ofps 25 dvd://${TRACK} -dvd-device "${DVDISO}" \
+		$OTHER_MENCODER_OPTIONS \
+		-x264encopts pass=2:$MAGIC_OPTIONS \
+		-vf filmdint,softskip,harddup \
+		-passlogfile x264_2pass.log \
+		-o title.264 \
+		> mencoder_pass2.log 2>&1
+
+	e=$?
+	if [ $e -ne 0 ]; then
+		echo "*** Error running second pass - check *.log (exit code $e)"
+		exit $e
+	fi
+}
+
+# -----------------------------------------------------------------------
+
+function run_merge() {
+	date
+	echo "Assembling video and audio files (mkvmerge)..."
+	# pack everything into a Matroska container
+	# Magic: let the command run even if there are no audio tracks and/or subtitles
+	mkvmerge -o "${OUTMKV}" title.264 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
+		> mkvmerge.log 2>&1
+
+	e=$?
+	if [ $e -ne 0 ]; then
+		echo "*** Error running mkvmerge - check *.log (exit code $e)"
+		exit $e
+	fi
+}
+
+# -----------------------------------------------------------------------
+function do_cleanup() {
+	# clean up
+	# at this point we've succeeded
+	rm -f title*.ac3 title*.idx title*.sub title.264 x264_2pass.log
+}
+# -----------------------------------------------------------------------
 
 # check for programs (must have --help option)
 # usage: check_for x y z
@@ -77,6 +209,8 @@ function check_for() {
 # poor man's error checking: see which command dies ;-)
 #set -x 
 
+# default settings
+
 DVDISO=""
 TRACK=""
 OUTMKV=""
@@ -86,7 +220,27 @@ SUBTITLES=""
 # parallel encoding of the video part (use as many as you have real CPU cores)
 THREADS=auto
 
-while getopts "hd:o:a:s:c:t:" OPTION; do
+# magic options from mplayer encoding howto:
+# http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
+
+MAGIC_OPTIONS_BEST=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
+MAGIC_OPTIONS_FAST=turbo=1:subq=4:bframes=2:b_pyramid:weight_b:bitrate=200:threads=${THREADS}
+OTHER_MENCODER_OPTIONS="
+	-quiet
+	-ovc x264
+	-oac copy
+	-of rawvideo
+"
+
+USE_FAST=0
+
+# -----------------------------------------------------------------------
+
+if [ $# -eq 0 ]; then
+	usage
+fi
+
+while getopts "hfd:o:a:s:c:t:e:" OPTION; do
 	case $OPTION in
 		h)
 			usage
@@ -109,8 +263,23 @@ while getopts "hd:o:a:s:c:t:" OPTION; do
 		c)
 			THREADS=${OPTARG}
 			;;
+		f)
+			USE_FAST=1
+			;;
+		e)
+			case "$OPTARG" in
+				ripsubtitle|ripaudio|ripvideo|merge|cleanup)
+					STAGE=$OPTARG			
+					;;
+				*)
+					echo "-e: invalid stage, see help."
+					exit 1
+					;;
+			esac
+			;;
 		*)
 			echo "Invalid argument $OPTION"
+			exit 1
 			;;
 	esac
 done
@@ -126,7 +295,7 @@ if [ -z "$OUTMKV" ]; then
 fi
 
 # check dependencies
-check_for sed grep tr mplayer mencoder MP4Box mkvmerge || exit 1
+check_for sed grep tr mplayer mencoder mkvmerge || exit 1
 
 echo "------------------------------------"
 
@@ -161,7 +330,6 @@ fi
 # autodetect subtitles if none specified (and "none" is not specified:)
 if [ -z "$SUBTITLES" ]; then
 	# these go by name, not by ID
-	#SUBTITLES=$( grep -F '==> Found subtitle:' mplayer_examine.out  | sed 's/==> Found subtitle://g' | tr -d '\n' )
 	SUBTITLES=$( grep -F 'subtitle ( sid ):' mplayer_examine.out | sed 's/.*language://g' | tr -d '\n' )
 	echo "No subtitles specified, autodetected the following: ${SUBTITLES}"
 fi
@@ -178,146 +346,49 @@ if [ $e -ne 0 ]; then
 fi
 echo "Audio tracks: $AUDIOTRACKS"
 echo "Subtitles: $SUBTITLES"
+if [ "$USE_FAST" == "1" ]; then
+	echo "Using FAST encoding."
+	MAGIC_OPTIONS="$MAGIC_OPTIONS_FAST"
+else
+	echo "Using BEST encoding."
+	MAGIC_OPTIONS="$MAGIC_OPTIONS_BEST"
+fi
+
+[ -n "$STAGE" ]  && echo "-> running stage $STAGE only"
+
 echo "************************************************"
 
 ################################## getting down to actual ripping
 
-# get subtitles, if any
-if [ "$SUBTITLES" != "none" ]; then
-	for i in $SUBTITLES; do
-		date
-		echo "Getting subtitle: $i .."
-		mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-			-quiet -nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i \
-		> mplayer_sub_${i}.log 2>&1 
-		e=$?
-		if [ $e -ne 0 ]; then
-			echo "*** Error getting subtitle $i - check *.log (exit code $e)"
-			exit $e
-		fi
-	done
+if [ -z "$STAGE" ]; then
+	rip_subtitles
+	rip_audio
+	encode_video
+	run_merge
+	do_cleanup
 else
-	echo "Skipping all subtitles."
-fi
-
-
-case "$AUDIOTRACKS" in
-	none)
-		echo "Skipping all audio tracks."
+	case "$STAGE" in
+	ripsubtitle)
+		rip_subtitles
 		;;
-	default)
-		# get default if that was specified
-		echo "Getting default audio track ..."
-		mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-			-dumpaudio -dumpfile title.ac3 \
-		> mplayer_audio_default.log 2>&1
-		e=$?
-		if [ $e -ne 0 ]; then
-			echo "*** Error getting default audio track - check *.log (exit code $e)"
-			exit $e
-		fi
-		if [ ! -s title.ac3 ]; then
-			echo "*** WARNING WARNING WARNING: default audio track is empty -- deleting"
-			rm -f title.ac3
-		fi
+	ripaudio)
+		rip_audio
 		;;
-	*)
-		# get all audio tracks...
-		for i in $AUDIOTRACKS; do
-			date
-			echo "Getting audio track $i (of $AUDIOTRACKS)..."
-			mplayer dvd://${TRACK} -dvd-device "${DVDISO}" \
-				-aid $i -dumpaudio -dumpfile title.${i}.ac3 \
-			> mplayer_audio_aid_${i}.log 2>&1
-			e=$?
-			if [ $e -ne 0 ]; then
-				echo "*** Error getting audio track aid $i - check *.log (exit code $e)"
-				exit $e
-			fi
-			if [ ! -s title.${i}.ac3 ]; then
-				echo "*** Warning: audio track $i is empty -- deleting"
-				rm -f title.${i}.ac3
-			fi
-		done
+	ripvideo)
+		encode_video
 		;;
-esac
-
-# magic options from mplayer encoding howto:
-# http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
-
-MAGIC_OPTIONS=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
-OTHER_MENCODER_OPTIONS="
-	-quiet
-	-ovc x264
-	-oac copy
-	-of rawvideo
-"
-
-date
-echo "Starting encoding, pass 1 ..."
-
-# two-pass video encoding for quality (FIXME: do 3 passes make sense?)
-mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-	$OTHER_MENCODER_OPTIONS \
-	-x264encopts pass=1:turbo=1:$MAGIC_OPTIONS \
-	-passlogfile x264_2pass.log \
-	-o /dev/null \
-	> mencoder_pass1.log 2>&1
-
-e=$?
-if [ $e -ne 0 ]; then
-	echo "*** Error running first pass - check *.log (exit code $e)"
-	exit $e
+	merge)
+		run_merge
+		;;
+	cleanup)
+		do_cleanup
+		;;
+	esac
+	exit 0
 fi
-
-date
-echo "Encoding, pass 2 ..."
-
-mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
-	$OTHER_MENCODER_OPTIONS \
-	-x264encopts pass=2:$MAGIC_OPTIONS \
-	-vf filmdint,softskip,harddup \
-	-passlogfile x264_2pass.log \
-	-o title.264 \
-	> mencoder_pass2.log 2>&1
-
-e=$?
-if [ $e -ne 0 ]; then
-	echo "*** Error running second pass - check *.log (exit code $e)"
-	exit $e
-fi
-
-date
-echo "Preparing video container (MP4Box)..."
-# pack video into MP4 container
-MP4Box -quiet -add title.264 title.mp4 && rm -f title.264 \
-	> mp4box.log 2>&1 
-
-e=$?
-if [ $e -ne 0 ]; then
-	echo "*** Error running MP4Box - check *.log (exit code $e)"
-	exit $e
-fi
-
-date
-echo "Assembling video and audio files (mkvmerge)..."
-# pack everything into a Matroska container
-# Magic: let the command run even if there are no audio tracks and/or subtitles
-mkvmerge -o "${OUTMKV}" title.mp4 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
-	> mkvmerge.log 2>&1
-
-e=$?
-if [ $e -ne 0 ]; then
-	echo "*** Error running mkvmerge - check *.log (exit code $e)"
-	exit $e
-fi
-
-# clean up
-# at this point we've succeeded
-rm -f title*.ac3 title*.idx title*.sub title.mp4 x264_2pass.log
 
 date
 echo "Done. $SECONDS seconds have passed. Have a nice day."
 
-# vim: ai
+# vim: ai bg=dark noexpandtab
 # EOT

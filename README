@@ -18,7 +18,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 ----------------------------------------------------------------------------
 
 To install dependencies (on debian/ubuntu):
-$ sudo apt-get install mplayer mencoder mkvtoolnix gpac x264 lsdvd grep sed
+$ sudo apt-get install mplayer mencoder mkvtoolnix x264 lsdvd grep sed
 
 - Make sure there's enough space in the current directory as it's used as temp
   space.
