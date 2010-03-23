@@ -61,10 +61,10 @@ function rip_audio() {
 			echo "Getting default audio track ..."
 			mplayer -vo null dvd://${TRACK} -dvd-device "${DVDISO}" \
 				-dumpaudio -dumpfile title.ac3 \
-			> mplayer_audio_default.log 2>&1
+			> "$LOGDIR/mplayer_audio_default.log" 2>&1
 			e=$?
 			if [ $e -ne 0 ]; then
-				echo "*** Error getting default audio track - check *.log (exit code $e)"
+				echo "*** Error getting default audio track - check $LOGDIR/*.log (exit code $e)"
 				exit $e
 			fi
 			if [ ! -s title.ac3 ]; then
@@ -79,10 +79,10 @@ function rip_audio() {
 				echo "Getting audio track $i (of $AUDIOTRACKS)..."
 				mplayer -vo null dvd://${TRACK} -dvd-device "${DVDISO}" \
 					-aid $i -dumpaudio -dumpfile title.${i}.ac3 \
-				> mplayer_audio_aid_${i}.log 2>&1
+				> "$LOGDIR/mplayer_audio_aid_${i}.log" 2>&1
 				e=$?
 				if [ $e -ne 0 ]; then
-					echo "*** Error getting audio track aid $i - check *.log (exit code $e)"
+					echo "*** Error getting audio track aid $i - check $LOGDIR/*.log (exit code $e)"
 					exit $e
 				fi
 				if [ ! -s title.${i}.ac3 ]; then
@@ -104,10 +104,10 @@ function rip_subtitles() {
 			echo "Getting subtitle: $i .."
 			mencoder dvd://${TRACK} -dvd-device "${DVDISO}" \
 				-quiet -nosound -ovc frameno -o /dev/null -slang $i -vobsubout title.$i \
-			> mplayer_sub_${i}.log 2>&1 
+			> "$LOGDIR/mplayer_sub_${i}.log" 2>&1 
 			e=$?
 			if [ $e -ne 0 ]; then
-				echo "*** Error getting subtitle $i - check *.log (exit code $e)"
+				echo "*** Error getting subtitle $i - check $LOGDIR/*.log (exit code $e)"
 				exit $e
 			fi
 		done
@@ -133,11 +133,11 @@ function encode_video() {
 		-x264encopts pass=1:turbo=1:$MAGIC_OPTIONS \
 		-passlogfile x264_2pass.log \
 		-o /dev/null \
-		> mencoder_pass1.log 2>&1
+		> "$LOGDIR/mencoder_pass1.log" 2>&1
 
 	e=$?
 	if [ $e -ne 0 ]; then
-		echo "*** Error running first pass - check *.log (exit code $e)"
+		echo "*** Error running first pass - check $LOGDIR/*.log (exit code $e)"
 		exit $e
 	fi
 
@@ -150,11 +150,11 @@ function encode_video() {
 		-vf filmdint,softskip,harddup \
 		-passlogfile x264_2pass.log \
 		-o title.264 \
-		> mencoder_pass2.log 2>&1
+		> "$LOGDIR/mencoder_pass2.log" 2>&1
 
 	e=$?
 	if [ $e -ne 0 ]; then
-		echo "*** Error running second pass - check *.log (exit code $e)"
+		echo "*** Error running second pass - check $LOGDIR/*.log (exit code $e)"
 		exit $e
 	fi
 }
@@ -166,12 +166,14 @@ function run_merge() {
 	echo "Assembling video and audio files (mkvmerge)..."
 	# pack everything into a Matroska container
 	# Magic: let the command run even if there are no audio tracks and/or subtitles
-	mkvmerge -o "${OUTMKV}" title.264 $( ls *.ac3 2>/dev/null ) $( ls *.idx 2>/dev/null) \
-		> mkvmerge.log 2>&1
+	AUDIOFILES=$( ls *.ac3 2>/dev/null )
+	SUBTITLES=$( ls *.idx 2>/dev/null)
+	mkvmerge -o "${OUTMKV}" title.264  $AUDIOFILES $SUBTITLES \
+		> "$LOGDIR/mkvmerge.log" 2>&1
 
 	e=$?
 	if [ $e -ne 0 ]; then
-		echo "*** Error running mkvmerge - check *.log (exit code $e)"
+		echo "*** Error running mkvmerge - check $LOGDIR/*.log (exit code $e)"
 		exit $e
 	fi
 }
@@ -233,6 +235,9 @@ OTHER_MENCODER_OPTIONS="
 "
 
 USE_FAST=0
+
+# relative to $CWD
+LOGDIR=.autorip.sh.logs
 
 # -----------------------------------------------------------------------
 
@@ -301,11 +306,13 @@ echo "------------------------------------"
 
 # -----------------------------------------------------------------------
 
+mkdir -p "$LOGDIR"
+
 if [ -z "$TRACK" ]; then
 	# longest track -- this is probably what you want
 	TRACK=$( lsdvd "${DVDISO}" 2>/dev/null | sed -n 's/Longest track: //p' )
 	if [ -z "$TRACK" ]; then
-		echo "Longest track not found and not specified -- check *.log.."
+		echo "Longest track not found and not specified -- check $LOGDIR/*.log.."
 		exit 1
 	else
 		echo "Targeting track $TRACK as longest track on the DVD.."
@@ -314,12 +321,12 @@ fi
 
 # prepare for autodetection -- dump information to parse later
 # lsdvd is unreliable in this matter :( mplayer does a better job
-mplayer -v -nosound -novideo dvd://${TRACK} -dvd-device ${DVDISO} > mplayer_examine.out 2>/dev/null
+mplayer -v -nosound -novideo dvd://${TRACK} -dvd-device ${DVDISO} > "$LOGDIR/mplayer_examine.out" 2>/dev/null
 
 # autodetect audio tracks if none specified
 if [ -z "$AUDIOTRACKS" ]; then
 	echo "No audio streams specified, autodetecting."
-	AUDIOTRACKS=$( grep -F '==> Found audio stream:' mplayer_examine.out  | sed 's/==> Found audio stream://g' | tr -d '\n')
+	AUDIOTRACKS=$( grep -F '==> Found audio stream:' "$LOGDIR/mplayer_examine.out"  | sed 's/==> Found audio stream://g' | tr -d '\n')
 	if [ -z "$AUDIOTRACKS" ]; then
 		echo "*** WARNING WARNING WARNING: No audio tracks detected, is this normal? ***"
 	else
@@ -330,7 +337,7 @@ fi
 # autodetect subtitles if none specified (and "none" is not specified:)
 if [ -z "$SUBTITLES" ]; then
 	# these go by name, not by ID
-	SUBTITLES=$( grep -F 'subtitle ( sid ):' mplayer_examine.out | sed 's/.*language://g' | tr -d '\n' )
+	SUBTITLES=$( grep -F 'subtitle ( sid ):' "$LOGDIR/mplayer_examine.out" | sed 's/.*language://g' | tr -d '\n' )
 	echo "No subtitles specified, autodetected the following: ${SUBTITLES}"
 fi
 
@@ -341,7 +348,7 @@ echo "DVD: $DVDISO track $TRACK"
 lsdvd -t $TRACK ${DVDISO} 2>/dev/null
 e=$?
 if [ $e -ne 0 ]; then
-	echo "*** Error accessing track $TRACK - check *.log (exit code $e)"
+	echo "*** Error accessing track $TRACK - check $LOGDIR/*.log (exit code $e)"
 	exit $e
 fi
 echo "Audio tracks: $AUDIOTRACKS"
