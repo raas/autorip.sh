@@ -1,0 +1,6 @@
+v1.1:
+	- code refactored into functions
+	- removed MP4Box/gpac dependency
+	- ability to run "fast" encoding (for testing, default is "best")
+	- ability to run certain "stages" only (rip audio, subtitles, video, ...)
+	- A/V sync fix for NTSC DVDs 
