@@ -224,9 +224,12 @@ THREADS=auto
 
 # magic options from mplayer encoding howto:
 # http://www.mplayerhq.hu/DOCS/HTML-single/en/MPlayer.html#menc-feat-x264-example-settings
+#
+# Also: b_pyramid does not work on Ubuntu Lucid (mplayer 2:1.0~rc3+svn2009042)
+# it has to be 'b_pyramid=normal'. Yes, this is more mencoder 'magic' :(
 
-MAGIC_OPTIONS_BEST=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid:weight_b:bitrate=1500:threads=${THREADS}
-MAGIC_OPTIONS_FAST=turbo=1:subq=4:bframes=2:b_pyramid:weight_b:bitrate=200:threads=${THREADS}
+MAGIC_OPTIONS_BEST=subq=6:partitions=all:8x8dct:me=umh:frameref=5:bframes=3:b_pyramid=normal:weight_b:bitrate=1500:threads=${THREADS}
+MAGIC_OPTIONS_FAST=turbo=1:subq=4:bframes=2:b_pyramid=normal:weight_b:bitrate=200:threads=${THREADS}
 OTHER_MENCODER_OPTIONS="
 	-quiet
 	-ovc x264
