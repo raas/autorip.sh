@@ -44,7 +44,7 @@ function usage() {
 }
 # -----------------------------------------------------------------------
 
-echo "Autorip.sh v1.1 Copyright (C) 2009 Andras Horvath"
+echo "Autorip.sh v1.2b Copyright (C) 2009 Andras Horvath"
 echo "License GPLv3: GNU GPL version 3 (see COPYING for details)"
 echo "This is free software: you are free to change and redistribute it."
 echo "There is NO WARRANTY, to the extent permitted by law."
@@ -322,9 +322,11 @@ if [ -z "$TRACK" ]; then
 	fi
 fi
 
+echo "Examining DVD image for audio and subtitle tracks..."
 # prepare for autodetection -- dump information to parse later
 # lsdvd is unreliable in this matter :( mplayer does a better job
-mplayer -v -nosound -novideo dvd://${TRACK} -dvd-device ${DVDISO} > "$LOGDIR/mplayer_examine.out" 2>/dev/null
+# FIXME skip this if both audio and subtitle tracks are explicitly specified?
+mplayer -v -nosound -novideo dvd://${TRACK} -dvd-device "${DVDISO}" > "$LOGDIR/mplayer_examine.out"  2> "$LOGDIR/mplayer_examine.err"
 
 # autodetect audio tracks if none specified
 if [ -z "$AUDIOTRACKS" ]; then
@@ -348,7 +350,7 @@ echo "************************************************"
 echo "THE FOLLOWING TRACK WILL BE RIPPED:"
 echo "DVD: $DVDISO track $TRACK"
 # show what we're ripping
-lsdvd -t $TRACK ${DVDISO} 2>/dev/null
+lsdvd -t $TRACK "${DVDISO}" 2>/dev/null
 e=$?
 if [ $e -ne 0 ]; then
 	echo "*** Error accessing track $TRACK - check $LOGDIR/*.log (exit code $e)"
