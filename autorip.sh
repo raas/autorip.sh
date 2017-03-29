@@ -147,7 +147,6 @@ function encode_video() {
 	mencoder -ofps 25 dvd://${TRACK} -dvd-device "${DVDISO}" \
 		$OTHER_MENCODER_OPTIONS \
 		-x264encopts pass=2:$MAGIC_OPTIONS \
-		-vf filmdint,softskip,harddup \
 		-passlogfile x264_2pass.log \
 		-o title.264 \
 		> "$LOGDIR/mencoder_pass2.log" 2>&1
@@ -235,6 +234,7 @@ OTHER_MENCODER_OPTIONS="
 	-ovc x264
 	-oac copy
 	-of rawvideo
+        -nosub -noautosub -forcedsubsonly -sid 1000
 "
 
 USE_FAST=0
